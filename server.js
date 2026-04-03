@@ -46,8 +46,8 @@ const startServer = async () => {
     }
 
     // Now load handlers
-    const userHandler = require('./src/handlers/userHandler');
-    const adminHandler = require('./src/handlers/adminHandler');
+    const userHandler = require('./src/handlers/userhandler');
+    const adminHandler = require('./src/handlers/adminhandler');
     const webhookRoutes = require('./src/routes/webhookRoutes');
 
     // Routes
