@@ -59,7 +59,7 @@ const startServer = async () => {
 
     // Launch bot handlers
     userHandler.launch();
-    adminHandler.launch();
+   // adminHandler.launch();
 
     console.log('🏏 IPL Prediction Bot Started!');
     console.log('✅ User handler active');
