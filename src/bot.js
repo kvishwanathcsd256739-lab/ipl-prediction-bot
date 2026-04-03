@@ -374,7 +374,7 @@ bot.action('back_menu', async (ctx) => {
 // ============= ADMIN COMMANDS =============
 
 bot.command('admin', async (ctx) => {
-  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID)) {
+  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID, 10)) {
     return ctx.reply('❌ Unauthorized access');
   }
 
@@ -391,7 +391,7 @@ bot.command('admin', async (ctx) => {
 });
 
 bot.hears('➕ Add New Prediction', async (ctx) => {
-  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID)) return;
+  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID, 10)) return;
 
   adminStates[ctx.from.id] = { step: 1 };
   await ctx.reply(
@@ -401,7 +401,7 @@ bot.hears('➕ Add New Prediction', async (ctx) => {
 });
 
 bot.hears('📊 View Predictions', async (ctx) => {
-  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID)) return;
+  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID, 10)) return;
 
   try {
     const predictions = await Prediction.find().sort({ createdAt: -1 }).limit(10);
@@ -427,7 +427,7 @@ bot.hears('📊 View Predictions', async (ctx) => {
 
 // /predictions command (alias for admins)
 bot.command('predictions', async (ctx) => {
-  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID)) {
+  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID, 10)) {
     return ctx.reply('❌ Admin only command!');
   }
 
@@ -455,7 +455,7 @@ bot.command('predictions', async (ctx) => {
 
 // /stats command
 bot.command('stats', async (ctx) => {
-  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID)) {
+  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID, 10)) {
     return ctx.reply('❌ Admin only command!');
   }
 
@@ -481,7 +481,7 @@ bot.command('stats', async (ctx) => {
 
 bot.on('text', async (ctx) => {
   // Only process for the admin while in a multi-step state
-  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID)) return;
+  if (ctx.from.id !== parseInt(process.env.ADMIN_USER_ID, 10)) return;
 
   const state = adminStates[ctx.from.id];
   if (!state) return;
