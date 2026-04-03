@@ -1,0 +1,31 @@
+{
+  "name": "ipl-prediction-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for IPL match predictions with free analysis and premium predictions",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "nodemon src/bot.js",
+    "init-db": "node src/scripts/initDb.js",
+    "check-setup": "node src/scripts/checkSetup.js",
+    "setup": "node src/scripts/setupWizard.js"
+  },
+  "keywords": ["telegram", "bot", "ipl", "cricket", "prediction"],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "node-telegram-bot-api": "^0.64.0",
+    "mongoose": "^8.0.0",
+    "dotenv": "^16.3.1",
+    "qrcode": "^1.5.3",
+    "axios": "^1.6.0",
+    "date-fns": "^3.0.0",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
