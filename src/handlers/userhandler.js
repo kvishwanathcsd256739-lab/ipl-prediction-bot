@@ -9,6 +9,7 @@ const {
   buildMatchDetailMessage,
   buildNoMatchesTodayMessage,
 } = require('../utils/startCommand');
+const { getTodaysMatches, formatDate, formatTime } = require('../utils/schedule');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
@@ -144,48 +145,44 @@ bot.start(async (ctx) => {
   );
 
   try {
-    // Find today's predictions
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    // Get today's matches from schedule (not database)
+    const { matches, isToday, nextMatchDate } = getTodaysMatches();
 
-    const todayPredictions = await Prediction.find({
-      date: { $gte: todayStart, $lte: todayEnd },
-    }).sort({ date: 1 });
-
-    if (todayPredictions.length === 0) {
-      // Find next upcoming match
-      const nextPrediction = await Prediction.findOne({
-        date: { $gt: todayEnd },
-      }).sort({ date: 1 });
-
-      const noMatchMsg = buildNoMatchesTodayMessage(nextPrediction);
-
-      const buttons = [];
-      if (nextPrediction) {
-        buttons.push([Markup.button.callback('📅 Next Match Details', 'next_match')]);
-      }
-      buttons.push([Markup.button.callback('💎 Premium Prediction', 'premium_unlock')]);
-      buttons.push([Markup.button.callback('ℹ️ About', 'about')]);
+    if (matches.length === 0) {
+      const noMatchMsg =
+        `🏏 *IPL PREDICTION BOT* 🏏\n\n` +
+        `😴 *No IPL matches scheduled today.*\n\n` +
+        (nextMatchDate ? `📅 Next match: *${formatDate(nextMatchDate)}*\n\n` : '') +
+        `Check back on match day for full predictions!`;
 
       await ctx.reply(noMatchMsg, {
         parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard(buttons),
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('💎 Premium Prediction', 'premium_unlock')],
+          [Markup.button.callback('ℹ️ About', 'about')],
+        ]),
       });
       return;
     }
 
-    // Build today's summary message
-    const summaryMsg = buildTodayMatchesSummary(todayPredictions, firstName);
+    // Build today's summary message from schedule
+    const dateLabel = isToday ? "TODAY'S IPL MATCHES" : `NEXT MATCHES — ${formatDate(matches[0].date)}`;
+    let summaryMsg = `🏏 *WELCOME, ${firstName}!* 🏏\n\n📅 *${dateLabel}*\n\n🎯 *${matches.length} Match${matches.length !== 1 ? 'es' : ''}*\n\n`;
+    matches.forEach((match, idx) => {
+      summaryMsg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+      summaryMsg += `🏟 *MATCH ${idx + 1}*\n`;
+      summaryMsg += `⚔️  *${match.team1} vs ${match.team2}*\n`;
+      summaryMsg += `📍 ${match.venue}\n`;
+      summaryMsg += `⏰ ${formatTime(match.time)}\n\n`;
+    });
 
-    // Build per-match buttons
-    const matchButtons = todayPredictions.map((pred, idx) => [
+    const matchButtons = matches.map((match, idx) => [
       Markup.button.callback(
-        `🏏 Match ${idx + 1}: ${pred.team1} vs ${pred.team2}`,
+        `🏏 Match ${idx + 1}: ${match.team1} vs ${match.team2}`,
         `today_match_${idx}`
       ),
     ]);
+    matchButtons.push([Markup.button.callback('📊 Free Analysis', 'free_analysis')]);
     matchButtons.push([Markup.button.callback('💎 Premium Predictions', 'premium_unlock')]);
     matchButtons.push([Markup.button.callback('ℹ️ About', 'about')]);
 
@@ -224,23 +221,16 @@ bot.start(async (ctx) => {
 bot.action(/^today_match_(\d+)$/, async (ctx) => {
   try {
     const matchIndex = parseInt(ctx.match[1], 10);
+    const { matches } = getTodaysMatches();
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const todayPredictions = await Prediction.find({
-      date: { $gte: todayStart, $lte: todayEnd },
-    }).sort({ date: 1 });
-
-    if (!todayPredictions[matchIndex]) {
+    if (!matches[matchIndex]) {
       await ctx.answerCbQuery('❌ Match not found');
       return;
     }
 
-    const pred = todayPredictions[matchIndex];
-    const detailMsg = buildMatchDetailMessage(pred, matchIndex);
+    const match = matches[matchIndex];
+    const matchData = buildMatchData(match);
+    const detailMsg = generateFreeAnalysis(matchData);
 
     const backButtons = [
       [Markup.button.callback('⬅️ Back to Today\'s Matches', 'back_today')],
@@ -261,19 +251,19 @@ bot.action(/^today_match_(\d+)$/, async (ctx) => {
 // Callback: next_match — show the next upcoming match details
 bot.action('next_match', async (ctx) => {
   try {
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    const { matches, isToday, nextMatchDate } = getTodaysMatches();
 
-    const nextPrediction = await Prediction.findOne({
-      date: { $gt: todayEnd },
-    }).sort({ date: 1 });
-
-    if (!nextPrediction) {
+    if (matches.length === 0) {
       await ctx.answerCbQuery('❌ No upcoming matches found');
       return;
     }
 
-    const detailMsg = buildMatchDetailMessage(nextPrediction, 0);
+    const match = matches[0];
+    const matchData = buildMatchData(match);
+    let detailMsg = generateFreeAnalysis(matchData);
+    if (!isToday && nextMatchDate) {
+      detailMsg = `📅 *Next match: ${formatDate(nextMatchDate)}*\n\n` + detailMsg;
+    }
 
     await ctx.editMessageText(detailMsg, {
       parse_mode: 'Markdown',
@@ -293,24 +283,17 @@ bot.action('next_match', async (ctx) => {
 bot.action('back_today', async (ctx) => {
   try {
     const firstName = ctx.from.first_name || 'Fan';
+    const { matches, isToday, nextMatchDate } = getTodaysMatches();
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    if (matches.length === 0) {
+      const noMatchMsg =
+        `🏏 *IPL PREDICTION BOT* 🏏\n\n` +
+        `😴 *No IPL matches scheduled today.*\n\n` +
+        (nextMatchDate ? `📅 Next match: *${formatDate(nextMatchDate)}*\n\n` : '') +
+        `Check back on match day for full predictions!`;
 
-    const todayPredictions = await Prediction.find({
-      date: { $gte: todayStart, $lte: todayEnd },
-    }).sort({ date: 1 });
-
-    if (todayPredictions.length === 0) {
-      const nextPrediction = await Prediction.findOne({
-        date: { $gt: todayEnd },
-      }).sort({ date: 1 });
-
-      const noMatchMsg = buildNoMatchesTodayMessage(nextPrediction);
       const buttons = [];
-      if (nextPrediction) {
+      if (nextMatchDate) {
         buttons.push([Markup.button.callback('📅 Next Match Details', 'next_match')]);
       }
       buttons.push([Markup.button.callback('💎 Premium Prediction', 'premium_unlock')]);
@@ -321,13 +304,23 @@ bot.action('back_today', async (ctx) => {
         ...Markup.inlineKeyboard(buttons),
       });
     } else {
-      const summaryMsg = buildTodayMatchesSummary(todayPredictions, firstName);
-      const matchButtons = todayPredictions.map((pred, idx) => [
+      const dateLabel = isToday ? "TODAY'S IPL MATCHES" : `NEXT MATCHES — ${formatDate(matches[0].date)}`;
+      let summaryMsg = `🏏 *WELCOME, ${firstName}!* 🏏\n\n📅 *${dateLabel}*\n\n🎯 *${matches.length} Match${matches.length !== 1 ? 'es' : ''}*\n\n`;
+      matches.forEach((match, idx) => {
+        summaryMsg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        summaryMsg += `🏟 *MATCH ${idx + 1}*\n`;
+        summaryMsg += `⚔️  *${match.team1} vs ${match.team2}*\n`;
+        summaryMsg += `📍 ${match.venue}\n`;
+        summaryMsg += `⏰ ${formatTime(match.time)}\n\n`;
+      });
+
+      const matchButtons = matches.map((match, idx) => [
         Markup.button.callback(
-          `🏏 Match ${idx + 1}: ${pred.team1} vs ${pred.team2}`,
+          `🏏 Match ${idx + 1}: ${match.team1} vs ${match.team2}`,
           `today_match_${idx}`
         ),
       ]);
+      matchButtons.push([Markup.button.callback('📊 Free Analysis', 'free_analysis')]);
       matchButtons.push([Markup.button.callback('💎 Premium Predictions', 'premium_unlock')]);
       matchButtons.push([Markup.button.callback('ℹ️ About', 'about')]);
 
