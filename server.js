@@ -15,7 +15,63 @@ const {
   predictScore,
   getHeadToHeadStats,
   getSeasonSummary,
+  IPL_TEAMS,
+  VENUE_STATS,
 } = require('./src/analytics/matchAnalytics');
+
+const ALLOWED_TEAMS = new Set(IPL_TEAMS);
+const ALLOWED_VENUES = new Set(Object.keys(VENUE_STATS));
+
+/**
+ * Sanitize an HTML string by escaping special characters to prevent XSS.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+/**
+ * Validate and return a safe team name from query params.
+ * Falls back to defaultValue if the provided value is not in ALLOWED_TEAMS.
+ * @param {string|undefined} value
+ * @param {string} defaultValue
+ * @returns {string}
+ */
+function safeTeam(value, defaultValue) {
+  const upper = value ? String(value).toUpperCase() : defaultValue;
+  return ALLOWED_TEAMS.has(upper) ? upper : defaultValue;
+}
+
+/**
+ * Validate and return a safe venue name from query params.
+ * Falls back to defaultValue if the provided value is not in ALLOWED_VENUES.
+ * @param {string|undefined} value
+ * @param {string} defaultValue
+ * @returns {string}
+ */
+function safeVenue(value, defaultValue) {
+  if (!value) return defaultValue;
+  const sanitized = String(value);
+  return ALLOWED_VENUES.has(sanitized) ? sanitized : defaultValue;
+}
+
+/**
+ * Validate and return a safe date string (YYYY-MM-DD or locale string).
+ * Falls back to current date if the value contains suspicious characters.
+ * @param {string|undefined} value
+ * @returns {string}
+ */
+function safeDate(value) {
+  if (!value) return new Date().toLocaleDateString('en-IN');
+  const sanitized = String(value).replace(/[^0-9\-\/., ]/g, '');
+  return sanitized.length > 0 ? sanitized : new Date().toLocaleDateString('en-IN');
+}
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -54,24 +110,28 @@ const connectDB = async () => {
  * Returns an HTML match prediction dashboard
  */
 app.get('/analytics/dashboard', (req, res) => {
-  const { team1 = 'CSK', team2 = 'MI', venue = 'Chennai', date } = req.query;
+  const team1 = safeTeam(req.query.team1, 'CSK');
+  const team2 = safeTeam(req.query.team2, 'MI');
+  const venue = safeVenue(req.query.venue, 'Chennai');
+  const date = safeDate(req.query.date);
+
   const prob = calculateWinProbability(team1, team2, venue);
   const s1 = predictScore(team1, venue, true);
   const s2 = predictScore(team2, venue, false);
   const h2h = getHeadToHeadStats(team1, team2);
 
   const html = generateMatchDashboard({
-    team1,
-    team2,
-    venue,
-    date: date || new Date().toLocaleDateString('en-IN'),
+    team1: escapeHtml(team1),
+    team2: escapeHtml(team2),
+    venue: escapeHtml(venue),
+    date: escapeHtml(date),
     team1WinProb: prob.team1Prob,
     team2WinProb: prob.team2Prob,
-    predictedWinner: prob.team1Prob >= prob.team2Prob ? team1 : team2,
+    predictedWinner: escapeHtml(prob.team1Prob >= prob.team2Prob ? team1 : team2),
     confidence: Math.max(prob.team1Prob, prob.team2Prob),
     team1Score: s1.predicted,
     team2Score: s2.predicted,
-    tossWinner: team1,
+    tossWinner: escapeHtml(team1),
     keyPlayer: 'Top performer TBD',
     h2h: { wins1: h2h.wins1, wins2: h2h.wins2, total: h2h.total },
   });
@@ -108,7 +168,11 @@ app.get('/analytics/export/standings', (req, res) => {
  * Returns CSV export of a match prediction
  */
 app.get('/analytics/export/prediction', (req, res) => {
-  const { team1 = 'CSK', team2 = 'MI', venue = 'Chennai', date } = req.query;
+  const team1 = safeTeam(req.query.team1, 'CSK');
+  const team2 = safeTeam(req.query.team2, 'MI');
+  const venue = safeVenue(req.query.venue, 'Chennai');
+  const date = safeDate(req.query.date);
+
   const prob = calculateWinProbability(team1, team2, venue);
   const s1 = predictScore(team1, venue, true);
   const s2 = predictScore(team2, venue, false);
@@ -117,7 +181,7 @@ app.get('/analytics/export/prediction', (req, res) => {
     team1,
     team2,
     venue,
-    date: date || new Date().toLocaleDateString('en-IN'),
+    date,
     team1WinProb: prob.team1Prob,
     team2WinProb: prob.team2Prob,
     predictedWinner: prob.team1Prob >= prob.team2Prob ? team1 : team2,

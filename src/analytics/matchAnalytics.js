@@ -278,7 +278,9 @@ function predictScore(team, venue, isBattingFirst) {
   const venueData = VENUE_STATS[venue] || { avgFirstInnings: 175, avgSecondInnings: 168 };
   const venueAvg = isBattingFirst ? venueData.avgFirstInnings : venueData.avgSecondInnings;
   const predicted = Math.round((stats.avgScore + venueAvg) / 2);
-  const confidence = Math.round(15 + Math.random() * 10);
+  // Deterministic confidence: teams with more extreme NRR have wider variance
+  const nrr = (SEASON_STATS_2025[team] || { nrr: 0 }).nrr;
+  const confidence = Math.round(15 + Math.min(10, Math.abs(nrr) * 4));
   return {
     predicted,
     min: predicted - confidence,
@@ -365,14 +367,20 @@ function getModelMetrics() {
 function getTeamRecentForm(team, n = 10) {
   const stats = SEASON_STATS_2025[team] || { wins: 7, losses: 7 };
   const total = stats.wins + stats.losses;
+  const winRate = total > 0 ? stats.wins / total : 0.5;
+  // Build a deterministic alternating pattern based on win rate,
+  // ordered most-recent first (index 0 = most recent match).
+  // Wins are spread evenly across the last n matches.
   const form = [];
+  let winsLeft = Math.round(winRate * n);
   for (let i = 0; i < n; i++) {
-    form.push(i < stats.wins ? 1 : 0);
-  }
-  // Shuffle to simulate random order
-  for (let i = form.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [form[i], form[j]] = [form[j], form[i]];
+    const remaining = n - i;
+    if (winsLeft > 0 && (winsLeft / remaining >= 0.5 || winsLeft === remaining)) {
+      form.push(1);
+      winsLeft--;
+    } else {
+      form.push(0);
+    }
   }
   return form;
 }

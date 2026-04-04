@@ -27,6 +27,7 @@ const {
   getModelMetrics,
   getTeamRecentForm,
   VENUE_STATS,
+  SEASON_STATS_2025,
 } = require('../analytics/matchAnalytics');
 const {
   formatMatchPredictionEmbed,
@@ -516,7 +517,6 @@ bot.command('teamstats', async (ctx) => {
     return ctx.reply(`❌ Invalid team. Use: ${IPL_TEAMS.join(', ')}`);
   }
 
-  const { SEASON_STATS_2025 } = require('../analytics/matchAnalytics');
   const stats = SEASON_STATS_2025[team] || { wins: 7, losses: 7, nrr: 0, avgScore: 174, avgConceded: 174 };
   const form = getTeamRecentForm(team, 7);
   const text = formatTeamStatsEmbed(team, stats, form);
