@@ -213,7 +213,7 @@ bot.start(async (ctx) => {
       `✅ Premium winner predictions\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `📊 FREE ANALYSIS for everyone\n` +
-      `💎 PREMIUM PREDICTIONS (₹${process.env.PAYMENT_AMOUNT || 49})\n\n` +
+      `💎 PREMIUM PREDICTIONS (₹${(process.env.PAYMENT_AMOUNT || 4900) / 100})\n\n` +
       `Choose an option below:`;
 
     await ctx.reply(fallbackText, {
@@ -244,7 +244,7 @@ bot.action(/^today_match_(\d+)$/, async (ctx) => {
 
     const backButtons = [
       [Markup.button.callback('⬅️ Back to Today\'s Matches', 'back_today')],
-      [Markup.button.callback(`💎 Unlock Premium (₹${process.env.PAYMENT_AMOUNT || 49})`, `pay_49`)],
+      [Markup.button.callback(`💎 Unlock Premium (₹${(process.env.PAYMENT_AMOUNT || 4900) / 100})`, `pay_49`)],
     ];
 
     await ctx.editMessageText(detailMsg, {
@@ -279,7 +279,7 @@ bot.action('next_match', async (ctx) => {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
         [Markup.button.callback('⬅️ Back to Menu', 'back_menu')],
-        [Markup.button.callback(`💎 Unlock Premium (₹${process.env.PAYMENT_AMOUNT || 49})`, 'pay_49')],
+        [Markup.button.callback(`💎 Unlock Premium (₹${(process.env.PAYMENT_AMOUNT || 4900) / 100})`, 'pay_49')],
       ]),
     });
     await ctx.answerCbQuery();
@@ -427,13 +427,13 @@ Get OWNER'S ACCURATE PREDICTIONS
 ✅ Confidence Level
 ✅ Key Player Analysis
 
-💰 Price: ₹${process.env.PAYMENT_AMOUNT || 49} | ⏰ Valid: 7 days
+💰 Price: ₹${(process.env.PAYMENT_AMOUNT || 4900) / 100} | ⏰ Valid: 7 days
 `;
 
   await ctx.editMessageText(
     premiumText,
     Markup.inlineKeyboard([
-      [Markup.button.callback(`💳 Pay ₹${process.env.PAYMENT_AMOUNT || 49} Now`, 'pay_49')],
+      [Markup.button.callback(`💳 Pay ₹${(process.env.PAYMENT_AMOUNT || 4900) / 100} Now`, 'pay_49')],
       [Markup.button.callback('⬅️ Back to Menu', 'back_menu')],
     ]),
     { parse_mode: 'Markdown' }

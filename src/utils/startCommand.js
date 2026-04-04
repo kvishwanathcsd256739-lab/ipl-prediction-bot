@@ -2,7 +2,7 @@
  * Utility functions for the /start command's comprehensive today's match analysis.
  */
 
-const DEFAULT_PAYMENT_AMOUNT = 49;
+const DEFAULT_PAYMENT_AMOUNT = 4900; // in paise (100 paise = ₹1, so 4900 paise = ₹49)
 
 /**
  * Returns an emoji confidence indicator based on the confidence value.
@@ -269,7 +269,7 @@ const buildMatchDetailMessage = (pred, matchIndex) => {
   msg += `═══════════════════════════════════\n`;
   msg += `💎 *WANT THE WINNER PREDICTION?*\n`;
   msg += `✅ Predicted Winner  ✅ Toss  ✅ Key Player\n`;
-  msg += `💰 Unlock Premium for ₹${process.env.PAYMENT_AMOUNT || DEFAULT_PAYMENT_AMOUNT}\n`;
+  msg += `💰 Unlock Premium for ₹${(process.env.PAYMENT_AMOUNT || DEFAULT_PAYMENT_AMOUNT) / 100}\n`;
 
   return msg;
 };
