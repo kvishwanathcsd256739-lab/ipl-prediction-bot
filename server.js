@@ -62,15 +62,22 @@ function safeVenue(value, defaultValue) {
 }
 
 /**
- * Validate and return a safe date string (YYYY-MM-DD or locale string).
- * Falls back to current date if the value contains suspicious characters.
+ * Validate and return a safe date string for display.
+ * Accepts YYYY-MM-DD format only. Falls back to current date otherwise.
  * @param {string|undefined} value
  * @returns {string}
  */
 function safeDate(value) {
   if (!value) return new Date().toLocaleDateString('en-IN');
-  const sanitized = String(value).replace(/[^0-9\-\/., ]/g, '');
-  return sanitized.length > 0 ? sanitized : new Date().toLocaleDateString('en-IN');
+  const str = String(value).trim();
+  // Accept only YYYY-MM-DD format and validate as a real date
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const parsed = new Date(str);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString('en-IN');
+    }
+  }
+  return new Date().toLocaleDateString('en-IN');
 }
 
 const app = express();
