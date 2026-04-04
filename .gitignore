@@ -1,4 +1,42 @@
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Dependencies
 node_modules/
-.DS_Store
+package-lock.json
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Archives and binaries
+*.tar.gz
+*.zip
+*.tgz
+
+# Large binary/schedule files
+utils/*.pdf
+**/utils/*.pdf
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Build outputs
+dist/
+build/
