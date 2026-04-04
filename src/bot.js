@@ -43,7 +43,7 @@ bot.start(async (ctx) => {
                    `✅ I predict who will win\n\n` +
                    `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
                    `📊 FREE ANALYSIS for everyone\n` +
-                   `💎 PREMIUM PREDICTIONS (₹${process.env.PAYMENT_AMOUNT || 49})\n\n` +
+                   `💎 PREMIUM PREDICTIONS (₹${(process.env.PAYMENT_AMOUNT || 4900) / 100})\n\n` +
                    `Choose an option below:`;
 
     await ctx.reply(message, {
@@ -78,7 +78,7 @@ bot.command('today', async (ctx) => {
     await ctx.reply(message, {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
-        [Markup.button.callback(`💎 Unlock Premium (₹${process.env.PAYMENT_AMOUNT || 49})`, `pay_${prediction._id}`)]
+        [Markup.button.callback(`💎 Unlock Premium (₹${(process.env.PAYMENT_AMOUNT || 4900) / 100})`, `pay_${prediction._id}`)]
       ])
     });
   } catch (error) {
@@ -96,7 +96,7 @@ bot.help((ctx) => {
                  `/help - Show this help message\n\n` +
                  `*How to Use:*\n` +
                  `1. Click "Today's Free Analysis" for detailed insights\n` +
-                 `2. Pay ₹${process.env.PAYMENT_AMOUNT || 49} to unlock premium prediction\n` +
+                 `2. Pay ₹${(process.env.PAYMENT_AMOUNT || 4900) / 100} to unlock premium prediction\n` +
                  `3. Get winner, toss, and key player predictions\n\n` +
                  `Questions? Contact admin.`;
 
@@ -122,7 +122,7 @@ bot.action('today', async (ctx) => {
     await ctx.reply(message, {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
-        [Markup.button.callback(`💎 Unlock Premium (₹${process.env.PAYMENT_AMOUNT || 49})`, `pay_${prediction._id}`)]
+        [Markup.button.callback(`💎 Unlock Premium (₹${(process.env.PAYMENT_AMOUNT || 4900) / 100})`, `pay_${prediction._id}`)]
       ])
     });
     await ctx.answerCbQuery();
@@ -140,7 +140,7 @@ bot.action('about', async (ctx) => {
                       `✅ Expert predictions\n` +
                       `✅ Winner predictions\n` +
                       `✅ Toss predictions\n\n` +
-                      `💰 Premium cost: ₹${process.env.PAYMENT_AMOUNT || 49}/match\n\n` +
+                      `💰 Premium cost: ₹${(process.env.PAYMENT_AMOUNT || 4900) / 100}/match\n\n` +
                       `Version: 1.0.0\n` +
                       `Made with ❤️ for cricket fans`;
 
