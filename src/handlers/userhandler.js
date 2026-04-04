@@ -19,13 +19,13 @@ const TEAM_INFO = {
   CSK:  { stars: 'Sanju Samson, Ruturaj Gaikwad, Shivam Dube',          keyPlayer: 'Ruturaj Gaikwad',  rank: 1 },
   MI:   { stars: 'Rohit Sharma, Suryakumar Yadav, Jasprit Bumrah',       keyPlayer: 'Jasprit Bumrah',   rank: 2 },
   RCB:  { stars: 'Virat Kohli, Phil Salt, Josh Hazlewood',               keyPlayer: 'Virat Kohli',      rank: 3 },
-  KKR:  { stars: 'Venkatesh Iyer, Rinku Singh, Sunil Narine',            keyPlayer: 'Sunil Narine',     rank: 4 },
+  KKR:  { stars: 'Sunil Narine, Andre Russell, Rinku Singh',              keyPlayer: 'Sunil Narine',     rank: 4 },
   SRH:  { stars: 'Pat Cummins, Travis Head, Heinrich Klaasen',           keyPlayer: 'Pat Cummins',      rank: 5 },
   RR:   { stars: 'Yashasvi Jaiswal, Riyan Parag, Jofra Archer',          keyPlayer: 'Yashasvi Jaiswal', rank: 6 },
   GT:   { stars: 'Shubman Gill, Rashid Khan, Kagiso Rabada',             keyPlayer: 'Rashid Khan',      rank: 7 },
-  DC:   { stars: 'KL Rahul, Rishabh Pant, Axar Patel',                  keyPlayer: 'Rishabh Pant',     rank: 8 },
+  DC:   { stars: 'KL Rahul, Jake Fraser-McGurk, Axar Patel',            keyPlayer: 'KL Rahul',         rank: 8 },
   PBKS: { stars: 'Shreyas Iyer, Arshdeep Singh, Yuzvendra Chahal',       keyPlayer: 'Yuzvendra Chahal', rank: 9 },
-  LSG:  { stars: 'Nicholas Pooran, Aiden Markram, Ravi Bishnoi',         keyPlayer: 'Nicholas Pooran',  rank: 10 },
+  LSG:  { stars: 'Rishabh Pant, Nicholas Pooran, Aiden Markram',         keyPlayer: 'Rishabh Pant',     rank: 10 },
 };
 
 const DEFAULT_TEAM_INFO = { stars: 'Star Players', keyPlayer: 'Key Player', rank: 5 };
