@@ -16,16 +16,16 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 // ── Team metadata ────────────────────────────────────────────────────────────
 
 const TEAM_INFO = {
-  CSK:  { stars: 'Ruturaj Gaikwad, Shivam Dube, Ravindra Jadeja', keyPlayer: 'Ruturaj Gaikwad',  rank: 1 },
-  MI:   { stars: 'Rohit Sharma, Suryakumar Yadav, Jasprit Bumrah',  keyPlayer: 'Jasprit Bumrah',   rank: 2 },
-  RCB:  { stars: 'Virat Kohli, Faf du Plessis, Mohammed Siraj',     keyPlayer: 'Virat Kohli',      rank: 3 },
-  KKR:  { stars: 'Shreyas Iyer, Sunil Narine, Andre Russell',       keyPlayer: 'Sunil Narine',     rank: 4 },
-  SRH:  { stars: 'Pat Cummins, Abhishek Sharma, Travis Head',       keyPlayer: 'Pat Cummins',      rank: 5 },
-  RR:   { stars: 'Sanju Samson, Jos Buttler, Yashasvi Jaiswal',     keyPlayer: 'Yashasvi Jaiswal', rank: 6 },
-  GT:   { stars: 'Shubman Gill, Hardik Pandya, Rashid Khan',        keyPlayer: 'Rashid Khan',      rank: 7 },
-  DC:   { stars: 'David Warner, Rishabh Pant, Axar Patel',          keyPlayer: 'Rishabh Pant',     rank: 8 },
-  PBKS: { stars: 'Shikhar Dhawan, Liam Livingstone, Sam Curran',    keyPlayer: 'Liam Livingstone', rank: 9 },
-  LSG:  { stars: 'KL Rahul, Quinton de Kock, Ravi Bishnoi',        keyPlayer: 'KL Rahul',         rank: 10 },
+  CSK:  { stars: 'Sanju Samson, Ruturaj Gaikwad, Shivam Dube',          keyPlayer: 'Ruturaj Gaikwad',  rank: 1 },
+  MI:   { stars: 'Rohit Sharma, Suryakumar Yadav, Jasprit Bumrah',       keyPlayer: 'Jasprit Bumrah',   rank: 2 },
+  RCB:  { stars: 'Virat Kohli, Phil Salt, Josh Hazlewood',               keyPlayer: 'Virat Kohli',      rank: 3 },
+  KKR:  { stars: 'Venkatesh Iyer, Rinku Singh, Sunil Narine',            keyPlayer: 'Sunil Narine',     rank: 4 },
+  SRH:  { stars: 'Pat Cummins, Travis Head, Heinrich Klaasen',           keyPlayer: 'Pat Cummins',      rank: 5 },
+  RR:   { stars: 'Yashasvi Jaiswal, Riyan Parag, Jofra Archer',          keyPlayer: 'Yashasvi Jaiswal', rank: 6 },
+  GT:   { stars: 'Shubman Gill, Rashid Khan, Kagiso Rabada',             keyPlayer: 'Rashid Khan',      rank: 7 },
+  DC:   { stars: 'KL Rahul, Rishabh Pant, Axar Patel',                  keyPlayer: 'Rishabh Pant',     rank: 8 },
+  PBKS: { stars: 'Shreyas Iyer, Arshdeep Singh, Yuzvendra Chahal',       keyPlayer: 'Yuzvendra Chahal', rank: 9 },
+  LSG:  { stars: 'Nicholas Pooran, Aiden Markram, Ravi Bishnoi',         keyPlayer: 'Nicholas Pooran',  rank: 10 },
 };
 
 const DEFAULT_TEAM_INFO = { stars: 'Star Players', keyPlayer: 'Key Player', rank: 5 };
@@ -99,6 +99,15 @@ function buildMatchData(scheduleEntry) {
     return '❌ L | ✅ W | ❌ L | ✅ W | ❌ L';
   }
 
+  // Build dynamic player performance predictions from squad stars
+  const t1StarsList = t1.stars.split(', ');
+  const t2StarsList = t2.stars.split(', ');
+  const playerPredictions =
+    `• ${t1StarsList[0]} 40+ runs` +
+    ` • ${t2StarsList[0]} 35+ runs` +
+    ` • ${t1StarsList[1] || t1StarsList[0]} 30+ runs` +
+    ` • ${t2StarsList[2] || t2StarsList[1] || t2StarsList[0]} 2+ wickets`;
+
   return {
     team1,
     team2,
@@ -108,6 +117,7 @@ function buildMatchData(scheduleEntry) {
     team2Form: formString(t2.rank),
     team1Stars: t1.stars,
     team2Stars: t2.stars,
+    playerPredictions,
     pitchReport,
     weather: 'Clear ☀️ (check local forecast)',
     h2hTotal: String(h2h.total),

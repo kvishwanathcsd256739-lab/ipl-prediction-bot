@@ -46,15 +46,11 @@ Batting: ${matchData.battingStrong || 'Team 1'}
 Bowling: ${matchData.bowlingStrong || 'Team 2'}
 
 9️⃣ *STAR PLAYERS TO WATCH* ⭐
-🌟 Virat Kohli
-🌟 Ruturaj Gaikwad
-🌟 Jasprit Bumrah
-🌟 Ravindra Jadeja
-🌟 Shivam Dube
-🌟 MS Dhoni
+${(matchData.team1Stars || '').split(', ').map(p => `🌟 ${p}`).join('\n')}
+${(matchData.team2Stars || '').split(', ').map(p => `🌟 ${p}`).join('\n')}
 
 🔟 *PLAYER PERFORMANCE PREDICTIONS*
-${matchData.playerPredictions || '• Kohli 40+ runs • Ruturaj 35+ runs • Dube 2+ sixes'}
+${matchData.playerPredictions || `• ${matchData.team1} stars key performance • ${matchData.team2} stars key performance`}
 
 1️⃣1️⃣ *RECORDS & MILESTONES*
 ${matchData.milestones || '• Possible centuries • Quick 30s'}
