@@ -29,8 +29,9 @@ Thumbs.db
 *.zip
 *.tgz
 
-# Large binary files
-*.pdf
+# Large binary/schedule files
+utils/*.pdf
+**/utils/*.pdf
 
 # Coverage
 coverage/
