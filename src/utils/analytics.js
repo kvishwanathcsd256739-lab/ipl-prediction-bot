@@ -1,3 +1,5 @@
+const { progressBar, getConfidenceIndicator } = require('../analytics/embedFormatter');
+
 const generateFreeAnalysis = (matchData) => {
   return `
 📊 *FREE MATCH ANALYSIS*
@@ -82,6 +84,10 @@ ${matchData.insights || '• Balanced squads • Key players crucial'}
 };
 
 const formatPremiumPrediction = (prediction) => {
+  const confValue = parseInt(prediction.premiumPrediction.confidence) || 80;
+  const conf = getConfidenceIndicator(confValue);
+  const confBar = progressBar(confValue);
+
   return `
 🏆 *PREMIUM PREDICTION - UNLOCKED!* 🏆
 ═══════════════════════════════════
@@ -99,7 +105,8 @@ ${prediction.team1} vs ${prediction.team2}
 🎲 *${prediction.premiumPrediction.tossWinner}*
 
 ✅ *CONFIDENCE LEVEL*
-📊 *${prediction.premiumPrediction.confidence} CONFIDENT*
+${conf.emoji} *${prediction.premiumPrediction.confidence} CONFIDENT* ${conf.stars}
+[${confBar}] ${confValue}%
 
 ✅ *KEY PLAYER TO WATCH*
 ⭐ *${prediction.premiumPrediction.keyPlayer}*
