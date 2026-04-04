@@ -133,6 +133,20 @@ const VENUE_STATS = {
   },
 };
 
+// Default fallback stats for unknown teams
+const DEFAULT_TEAM_STATS = {
+  wins: 7,
+  losses: 7,
+  nrr: 0,
+  avgScore: 174,
+  avgConceded: 174,
+};
+
+// Score prediction confidence constants
+const BASE_CONFIDENCE = 15;
+const MAX_NRR_VARIANCE = 10;
+const NRR_SCALE_FACTOR = 4;
+
 // Sample player statistics for demonstration
 const SAMPLE_BATTERS = [
   { name: 'Virat Kohli', team: 'RCB', runs: 741, average: 61.75, strikeRate: 154.8, fifties: 5, hundreds: 1 },
@@ -170,8 +184,8 @@ const SAMPLE_BOWLERS = [
  * @returns {{ team1Prob: number, team2Prob: number, factors: object }}
  */
 function calculateWinProbability(team1, team2, venue, tossWinner, tossDecision) {
-  const stats1 = SEASON_STATS_2025[team1] || { wins: 7, losses: 7, nrr: 0 };
-  const stats2 = SEASON_STATS_2025[team2] || { wins: 7, losses: 7, nrr: 0 };
+  const stats1 = SEASON_STATS_2025[team1] || DEFAULT_TEAM_STATS;
+  const stats2 = SEASON_STATS_2025[team2] || DEFAULT_TEAM_STATS;
 
   const total1 = stats1.wins + stats1.losses;
   const total2 = stats2.wins + stats2.losses;
@@ -232,7 +246,7 @@ function calculateWinProbability(team1, team2, venue, tossWinner, tossDecision) 
  * @returns {object}
  */
 function getTeamStats(team) {
-  const stats = SEASON_STATS_2025[team] || { wins: 7, losses: 7, nrr: 0, avgScore: 174, avgConceded: 174 };
+  const stats = SEASON_STATS_2025[team] || DEFAULT_TEAM_STATS;
   const winRate = stats.wins / (stats.wins + stats.losses);
 
   return {
@@ -274,11 +288,14 @@ function getHeadToHeadStats(team1, team2) {
  * @returns {{ predicted: number, min: number, max: number, confidence: number }}
  */
 function predictScore(team, venue, isBattingFirst) {
-  const stats = SEASON_STATS_2025[team] || { avgScore: 174 };
+  const stats = SEASON_STATS_2025[team] || DEFAULT_TEAM_STATS;
   const venueData = VENUE_STATS[venue] || { avgFirstInnings: 175, avgSecondInnings: 168 };
   const venueAvg = isBattingFirst ? venueData.avgFirstInnings : venueData.avgSecondInnings;
   const predicted = Math.round((stats.avgScore + venueAvg) / 2);
-  const confidence = Math.round(15 + Math.random() * 10);
+  // Deterministic confidence: teams with more extreme NRR have wider variance
+  const confidence = Math.round(
+    BASE_CONFIDENCE + Math.min(MAX_NRR_VARIANCE, Math.abs(stats.nrr) * NRR_SCALE_FACTOR)
+  );
   return {
     predicted,
     min: predicted - confidence,
@@ -296,7 +313,7 @@ function getVenuePerformance(venue) {
   const venueData = VENUE_STATS[venue];
   if (!venueData) return [];
   return IPL_TEAMS.map((team) => {
-    const stats = SEASON_STATS_2025[team] || { wins: 7, avgScore: 174 };
+    const stats = SEASON_STATS_2025[team] || DEFAULT_TEAM_STATS;
     const homeBonus = venueData.homeTeam === team ? 2 : 0;
     return {
       team,
@@ -389,6 +406,7 @@ module.exports = {
   SEASON_STATS_2025,
   HEAD_TO_HEAD,
   VENUE_STATS,
+  DEFAULT_TEAM_STATS,
   calculateWinProbability,
   getTeamStats,
   getHeadToHeadStats,

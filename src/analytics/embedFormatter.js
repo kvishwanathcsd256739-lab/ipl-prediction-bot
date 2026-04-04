@@ -86,8 +86,8 @@ function formatMatchPredictionEmbed(data) {
   const conf = getConfidenceIndicator(data.confidence);
   const winBar = dualProgressBar(data.team1WinProb, data.team2WinProb);
   const confBar = progressBar(data.confidence);
-  const form1 = data.form1 ? formatFormString(data.form1.slice(-5)) : '✅ ✅ ❌ ✅ ✅';
-  const form2 = data.form2 ? formatFormString(data.form2.slice(-5)) : '❌ ✅ ✅ ❌ ✅';
+  const form1 = data.form1 ? formatFormString(data.form1.slice(-5)) : 'N/A';
+  const form2 = data.form2 ? formatFormString(data.form2.slice(-5)) : 'N/A';
 
   return (
     `🏏 *MATCH PREDICTION REPORT*\n` +
