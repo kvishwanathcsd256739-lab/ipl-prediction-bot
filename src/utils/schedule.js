@@ -6,10 +6,8 @@ const IPL_2026_SCHEDULE = require('../../data/ipl_2026_schedule');
  * Returns the current date string in YYYY-MM-DD format using IST (UTC+5:30).
  */
 function getTodayIST() {
-  // Date.now() always returns UTC milliseconds; add IST offset to get IST time
-  const istOffset = 5.5 * 60 * 60 * 1000; // 5h30m in ms
-  const istDate = new Date(Date.now() + istOffset);
-  return istDate.toISOString().slice(0, 10); // YYYY-MM-DD
+  // Use Intl API to get the current date in IST (Asia/Kolkata) as YYYY-MM-DD
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
 
 /**
