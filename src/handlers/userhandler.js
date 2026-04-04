@@ -12,27 +12,115 @@ const {
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
-const SAMPLE_MATCH = {
-  team1: 'CSK',
-  team2: 'MI',
-  venue: 'Chennai',
-  date: '2026-04-02',
-  team1Form: '✅ W | ✅ W | ✅ W | ❌ L | ✅ W',
-  team2Form: '❌ L | ✅ W | ❌ L | ✅ W | ✅ W',
-  team1Stars: 'Ruturaj, Dube, Jadeja',
-  team2Stars: 'Kohli, Bumrah, Pandya',
-  pitchReport: 'Good batting surface',
-  weather: 'Clear ☀️',
-  h2hTotal: '32',
-  team1H2hWins: '20',
-  team2H2hWins: '12',
-  venueAdvantage: 'CSK dominates',
-  tossTrend: 'Prefer chasing',
-  battingStrong: 'MI',
-  bowlingStrong: 'CSK',
-  powPlayScore: '50-65',
-  expectedTotal: '170-185',
+// ── Team metadata ────────────────────────────────────────────────────────────
+
+const TEAM_INFO = {
+  CSK:  { stars: 'Ruturaj Gaikwad, Shivam Dube, Ravindra Jadeja', keyPlayer: 'Ruturaj Gaikwad',  rank: 1 },
+  MI:   { stars: 'Rohit Sharma, Suryakumar Yadav, Jasprit Bumrah',  keyPlayer: 'Jasprit Bumrah',   rank: 2 },
+  RCB:  { stars: 'Virat Kohli, Faf du Plessis, Mohammed Siraj',     keyPlayer: 'Virat Kohli',      rank: 3 },
+  KKR:  { stars: 'Shreyas Iyer, Sunil Narine, Andre Russell',       keyPlayer: 'Sunil Narine',     rank: 4 },
+  SRH:  { stars: 'Pat Cummins, Abhishek Sharma, Travis Head',       keyPlayer: 'Pat Cummins',      rank: 5 },
+  RR:   { stars: 'Sanju Samson, Jos Buttler, Yashasvi Jaiswal',     keyPlayer: 'Yashasvi Jaiswal', rank: 6 },
+  GT:   { stars: 'Shubman Gill, Hardik Pandya, Rashid Khan',        keyPlayer: 'Rashid Khan',      rank: 7 },
+  DC:   { stars: 'David Warner, Rishabh Pant, Axar Patel',          keyPlayer: 'Rishabh Pant',     rank: 8 },
+  PBKS: { stars: 'Shikhar Dhawan, Liam Livingstone, Sam Curran',    keyPlayer: 'Liam Livingstone', rank: 9 },
+  LSG:  { stars: 'KL Rahul, Quinton de Kock, Ravi Bishnoi',        keyPlayer: 'KL Rahul',         rank: 10 },
 };
+
+const DEFAULT_TEAM_INFO = { stars: 'Star Players', keyPlayer: 'Key Player', rank: 5 };
+
+// H2H head-to-head records (team1 wins, team2 wins, total)
+const H2H = {
+  'CSK-MI':   { t1: 20, t2: 12, total: 32 },
+  'CSK-RCB':  { t1: 21, t2: 11, total: 32 },
+  'MI-RCB':   { t1: 19, t2: 12, total: 31 },
+  'KKR-CSK':  { t1: 14, t2: 17, total: 31 },
+  'SRH-RCB':  { t1: 13, t2: 12, total: 25 },
+  'RR-MI':    { t1: 13, t2: 15, total: 28 },
+  'DC-MI':    { t1: 11, t2: 15, total: 26 },
+  'GT-LSG':   { t1: 3,  t2: 2,  total: 5  },
+};
+
+function getH2H(team1, team2) {
+  const key1 = `${team1}-${team2}`;
+  const key2 = `${team2}-${team1}`;
+  if (H2H[key1]) return { t1Wins: H2H[key1].t1, t2Wins: H2H[key1].t2, total: H2H[key1].total };
+  if (H2H[key2]) return { t1Wins: H2H[key2].t2, t2Wins: H2H[key2].t1, total: H2H[key2].total };
+  return { t1Wins: 10, t2Wins: 10, total: 20 };
+}
+
+// Build match data object expected by generateFreeAnalysis / formatPremiumPrediction
+function buildMatchData(scheduleEntry) {
+  const { team1, team2, venue, date, time } = scheduleEntry;
+  const t1 = TEAM_INFO[team1] || DEFAULT_TEAM_INFO;
+  const t2 = TEAM_INFO[team2] || DEFAULT_TEAM_INFO;
+  const h2h = getH2H(team1, team2);
+
+  // Prediction: lower rank number = stronger team; h2h record breaks ties
+  const t1Score = t1.rank + (h2h.t2Wins - h2h.t1Wins) * 0.1;
+  const t2Score = t2.rank + (h2h.t1Wins - h2h.t2Wins) * 0.1;
+  const winner = t1Score <= t2Score ? team1 : team2;
+  const tossWinner = t1Score <= t2Score ? team2 : team1;
+  const rankDiff = Math.abs(t1.rank - t2.rank);
+  const confidence = rankDiff >= 4 ? '85%' : rankDiff >= 2 ? '75%' : '65%';
+  const keyPlayer = t1Score <= t2Score ? t1.keyPlayer : t2.keyPlayer;
+
+  // Venue-based pitch and score estimates
+  const venueLower = venue.toLowerCase();
+  let pitchReport = 'Good batting surface, expect high scores';
+  let powPlayScore = '52-62';
+  let expectedTotal = '170-185';
+  if (venueLower.includes('chennai') || venueLower.includes('chidambaram')) {
+    pitchReport = 'Spin-friendly surface, slower in 2nd innings';
+    powPlayScore = '48-58'; expectedTotal = '160-175';
+  } else if (venueLower.includes('mumbai') || venueLower.includes('wankhede')) {
+    pitchReport = 'Pace-friendly, good for bowlers early on';
+    powPlayScore = '50-60'; expectedTotal = '165-180';
+  } else if (venueLower.includes('bangalore') || venueLower.includes('chinnaswamy')) {
+    pitchReport = 'Batting paradise, high-scoring ground';
+    powPlayScore = '58-70'; expectedTotal = '185-205';
+  } else if (venueLower.includes('hyderabad') || venueLower.includes('rajiv')) {
+    pitchReport = 'Balanced surface, spinners get help later';
+    powPlayScore = '50-62'; expectedTotal = '165-180';
+  } else if (venueLower.includes('kolkata') || venueLower.includes('eden')) {
+    pitchReport = 'Dew factor in evening, good for chasing';
+    powPlayScore = '54-65'; expectedTotal = '175-190';
+  } else if (venueLower.includes('ahmedabad') || venueLower.includes('narendra')) {
+    pitchReport = 'Large ground, bowlers benefit from dimensions';
+    powPlayScore = '48-58'; expectedTotal = '160-175';
+  }
+
+  // Form strings vary by team rank (top teams have better recent form)
+  function formString(rank) {
+    if (rank <= 2) return '✅ W | ✅ W | ✅ W | ✅ W | ❌ L';
+    if (rank <= 4) return '✅ W | ✅ W | ❌ L | ✅ W | ✅ W';
+    if (rank <= 6) return '✅ W | ❌ L | ✅ W | ❌ L | ✅ W';
+    return '❌ L | ✅ W | ❌ L | ✅ W | ❌ L';
+  }
+
+  return {
+    team1,
+    team2,
+    venue,
+    date: `${formatDate(date)} at ${formatTime(time)}`,
+    team1Form: formString(t1.rank),
+    team2Form: formString(t2.rank),
+    team1Stars: t1.stars,
+    team2Stars: t2.stars,
+    pitchReport,
+    weather: 'Clear ☀️ (check local forecast)',
+    h2hTotal: String(h2h.total),
+    team1H2hWins: String(h2h.t1Wins),
+    team2H2hWins: String(h2h.t2Wins),
+    venueAdvantage: `${winner} historically stronger here`,
+    tossTrend: 'Teams prefer chasing at this venue',
+    battingStrong: t1.rank <= t2.rank ? team1 : team2,
+    bowlingStrong: t1.rank <= t2.rank ? team2 : team1,
+    powPlayScore,
+    expectedTotal,
+    premiumPrediction: { winner, tossWinner, confidence, keyPlayer },
+  };
+}
 
 bot.start(async (ctx) => {
   const userId = ctx.from.id;
@@ -257,7 +345,28 @@ bot.action('back_today', async (ctx) => {
 });
 
 bot.action('free_analysis', async (ctx) => {
-  const analysisText = generateFreeAnalysis(SAMPLE_MATCH);
+  const { matches, isToday, nextMatchDate } = getTodaysMatches();
+
+  if (matches.length === 0) {
+    await ctx.editMessageText(
+      '❌ No matches scheduled at the moment. Check back soon!',
+      Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back to Menu', 'back_menu')]])
+    );
+    return;
+  }
+
+  // Show analysis for the first match; if multiple today, list all at bottom
+  const matchData = buildMatchData(matches[0]);
+  let analysisText = generateFreeAnalysis(matchData);
+
+  if (matches.length > 1) {
+    const extraMatches = matches.slice(1).map((m) => `🏏 ${m.team1} vs ${m.team2} at ${formatTime(m.time)}`).join('\n');
+    analysisText += `\n\n📅 *Also today:*\n${extraMatches}`;
+  }
+
+  if (!isToday && nextMatchDate) {
+    analysisText = `📅 *Next match: ${formatDate(nextMatchDate)}*\n\n` + analysisText;
+  }
 
   await ctx.editMessageText(
     analysisText,
@@ -274,19 +383,27 @@ bot.action('premium_unlock', async (ctx) => {
   const user = await User.findOne({ telegramId: userId });
 
   if (user && user.isPaid && user.subscriptionExpiry > new Date()) {
-    const prediction = {
-      team1: SAMPLE_MATCH.team1,
-      team2: SAMPLE_MATCH.team2,
-      venue: SAMPLE_MATCH.venue,
-      premiumPrediction: {
-        winner: 'CSK',
-        tossWinner: 'MI',
-        confidence: '85%',
-        keyPlayer: 'Ruturaj Gaikwad',
-      },
-    };
+    const { matches, isToday, nextMatchDate } = getTodaysMatches();
 
-    const premiumText = formatPremiumPrediction(prediction);
+    if (matches.length === 0) {
+      await ctx.editMessageText(
+        '❌ No upcoming matches found.',
+        Markup.inlineKeyboard([[Markup.button.callback('⬅️ Back to Menu', 'back_menu')]])
+      );
+      return;
+    }
+
+    // Show premium predictions for all today's matches
+    let premiumText = '';
+    for (const match of matches) {
+      const matchData = buildMatchData(match);
+      premiumText += formatPremiumPrediction(matchData) + '\n\n';
+    }
+
+    if (!isToday && nextMatchDate) {
+      premiumText = `📅 *Next match: ${formatDate(nextMatchDate)}*\n\n` + premiumText;
+    }
+
     await ctx.editMessageText(
       premiumText,
       Markup.inlineKeyboard([
@@ -307,13 +424,13 @@ Get OWNER'S ACCURATE PREDICTIONS
 ✅ Confidence Level
 ✅ Key Player Analysis
 
-💰 Price: ₹49 | ⏰ Valid: 7 days
+💰 Price: ₹${process.env.PAYMENT_AMOUNT || 49} | ⏰ Valid: 7 days
 `;
 
   await ctx.editMessageText(
     premiumText,
     Markup.inlineKeyboard([
-      [Markup.button.callback('💳 Pay ₹49 Now', 'pay_49')],
+      [Markup.button.callback(`💳 Pay ₹${process.env.PAYMENT_AMOUNT || 49} Now`, 'pay_49')],
       [Markup.button.callback('⬅️ Back to Menu', 'back_menu')],
     ]),
     { parse_mode: 'Markdown' }
