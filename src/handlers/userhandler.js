@@ -1,9 +1,14 @@
 const { Telegraf, Markup } = require('telegraf');
 const User = require('../models/user');
 const Payment = require('../models/payment');
+const Prediction = require('../models/Prediction');
 const { generateFreeAnalysis, formatPremiumPrediction } = require('../utils/analytics');
 const { createOrder } = require('../utils/razorpay');
-const { getTodaysMatches, formatDate, formatTime } = require('../utils/schedule');
+const {
+  buildTodayMatchesSummary,
+  buildMatchDetailMessage,
+  buildNoMatchesTodayMessage,
+} = require('../utils/startCommand');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
@@ -121,58 +126,222 @@ bot.start(async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username || 'Unknown';
   const chatId = ctx.chat.id;
+  const firstName = ctx.from.first_name || 'Fan';
 
+  // Register or update user
   await User.findOneAndUpdate(
     { telegramId: userId },
     {
-      telegramId: userId,
-      username: username,
-      chatId: chatId,
-      createdAt: new Date(),
+      $set: {
+        telegramId: userId,
+        username: username,
+        chatId: chatId,
+        updatedAt: new Date(),
+      },
+      $setOnInsert: { createdAt: new Date() },
     },
     { upsert: true }
   );
 
-  const { matches, isToday, nextMatchDate } = getTodaysMatches();
+  try {
+    // Find today's predictions
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
 
-  let matchLine = '';
-  if (matches.length > 0) {
-    if (isToday) {
-      matchLine = matches.map((m) => `🏏 *${m.team1} vs ${m.team2}*`).join('\n');
-      matchLine = `\n📅 *Today's Matches:*\n${matchLine}\n`;
-    } else {
-      matchLine = matches.map((m) => `🏏 *${m.team1} vs ${m.team2}*`).join('\n');
-      matchLine = `\n📅 *Next Match (${formatDate(nextMatchDate)}):*\n${matchLine}\n`;
+    const todayPredictions = await Prediction.find({
+      date: { $gte: todayStart, $lte: todayEnd },
+    }).sort({ date: 1 });
+
+    if (todayPredictions.length === 0) {
+      // Find next upcoming match
+      const nextPrediction = await Prediction.findOne({
+        date: { $gt: todayEnd },
+      }).sort({ date: 1 });
+
+      const noMatchMsg = buildNoMatchesTodayMessage(nextPrediction);
+
+      const buttons = [];
+      if (nextPrediction) {
+        buttons.push([Markup.button.callback('📅 Next Match Details', 'next_match')]);
+      }
+      buttons.push([Markup.button.callback('💎 Premium Prediction', 'premium_unlock')]);
+      buttons.push([Markup.button.callback('ℹ️ About', 'about')]);
+
+      await ctx.reply(noMatchMsg, {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard(buttons),
+      });
+      return;
     }
+
+    // Build today's summary message
+    const summaryMsg = buildTodayMatchesSummary(todayPredictions, firstName);
+
+    // Build per-match buttons
+    const matchButtons = todayPredictions.map((pred, idx) => [
+      Markup.button.callback(
+        `🏏 Match ${idx + 1}: ${pred.team1} vs ${pred.team2}`,
+        `today_match_${idx}`
+      ),
+    ]);
+    matchButtons.push([Markup.button.callback('💎 Premium Predictions', 'premium_unlock')]);
+    matchButtons.push([Markup.button.callback('ℹ️ About', 'about')]);
+
+    await ctx.reply(summaryMsg, {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard(matchButtons),
+    });
+  } catch (error) {
+    console.error('Error in /start (today matches):', error);
+
+    // Fallback to basic welcome on error
+    const fallbackText =
+      `🏏 *WELCOME TO IPL PREDICTION BOT* 🏏\n\n` +
+      `Hi ${firstName}! 👋\n\n` +
+      `I'm your cricket expert:\n` +
+      `✅ Expert match predictions\n` +
+      `✅ Free in-depth analysis\n` +
+      `✅ Premium winner predictions\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `📊 FREE ANALYSIS for everyone\n` +
+      `💎 PREMIUM PREDICTIONS (₹${process.env.PAYMENT_AMOUNT || 49})\n\n` +
+      `Choose an option below:`;
+
+    await ctx.reply(fallbackText, {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('📊 Today\'s Free Analysis', 'free_analysis')],
+        [Markup.button.callback('💎 Premium Prediction', 'premium_unlock')],
+        [Markup.button.callback('ℹ️ About', 'about')],
+      ]),
+    });
   }
+});
 
-  const welcomeText = `
-🏏 *WELCOME TO IPL PREDICTION BOT* 🏏
+// Dynamic callback: today_match_<index> — show detailed analysis for a specific today's match
+bot.action(/^today_match_(\d+)$/, async (ctx) => {
+  try {
+    const matchIndex = parseInt(ctx.match[1], 10);
 
-Hi ${ctx.from.first_name}! 👋
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
 
-I'm your cricket expert teacher:
-✅ I study IPL matches
-✅ I give expert predictions
-✅ I predict who will win
+    const todayPredictions = await Prediction.find({
+      date: { $gte: todayStart, $lte: todayEnd },
+    }).sort({ date: 1 });
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${matchLine}
-📊 FREE ANALYSIS for everyone
-💎 PREMIUM PREDICTIONS (₹${process.env.PAYMENT_AMOUNT || 49})
+    if (!todayPredictions[matchIndex]) {
+      await ctx.answerCbQuery('❌ Match not found');
+      return;
+    }
 
-Let's predict today's match! 🎯
-`;
+    const pred = todayPredictions[matchIndex];
+    const detailMsg = buildMatchDetailMessage(pred, matchIndex);
 
-  await ctx.reply(
-    welcomeText,
-    Markup.inlineKeyboard([
-      [Markup.button.callback('📊 Today\'s Free Analysis', 'free_analysis')],
-      [Markup.button.callback('💎 Premium Prediction (₹49)', 'premium_unlock')],
-      [Markup.button.callback('ℹ️ How It Works', 'about')],
-    ]),
-    { parse_mode: 'Markdown' }
-  );
+    const backButtons = [
+      [Markup.button.callback('⬅️ Back to Today\'s Matches', 'back_today')],
+      [Markup.button.callback(`💎 Unlock Premium (₹${process.env.PAYMENT_AMOUNT || 49})`, `pay_49`)],
+    ];
+
+    await ctx.editMessageText(detailMsg, {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard(backButtons),
+    });
+    await ctx.answerCbQuery();
+  } catch (error) {
+    console.error('Error in today_match callback:', error);
+    await ctx.answerCbQuery('❌ Error loading match details');
+  }
+});
+
+// Callback: next_match — show the next upcoming match details
+bot.action('next_match', async (ctx) => {
+  try {
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const nextPrediction = await Prediction.findOne({
+      date: { $gt: todayEnd },
+    }).sort({ date: 1 });
+
+    if (!nextPrediction) {
+      await ctx.answerCbQuery('❌ No upcoming matches found');
+      return;
+    }
+
+    const detailMsg = buildMatchDetailMessage(nextPrediction, 0);
+
+    await ctx.editMessageText(detailMsg, {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('⬅️ Back to Menu', 'back_menu')],
+        [Markup.button.callback(`💎 Unlock Premium (₹${process.env.PAYMENT_AMOUNT || 49})`, 'pay_49')],
+      ]),
+    });
+    await ctx.answerCbQuery();
+  } catch (error) {
+    console.error('Error in next_match callback:', error);
+    await ctx.answerCbQuery('❌ Error loading next match');
+  }
+});
+
+// Callback: back_today — go back to today's matches overview
+bot.action('back_today', async (ctx) => {
+  try {
+    const firstName = ctx.from.first_name || 'Fan';
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayPredictions = await Prediction.find({
+      date: { $gte: todayStart, $lte: todayEnd },
+    }).sort({ date: 1 });
+
+    if (todayPredictions.length === 0) {
+      const nextPrediction = await Prediction.findOne({
+        date: { $gt: todayEnd },
+      }).sort({ date: 1 });
+
+      const noMatchMsg = buildNoMatchesTodayMessage(nextPrediction);
+      const buttons = [];
+      if (nextPrediction) {
+        buttons.push([Markup.button.callback('📅 Next Match Details', 'next_match')]);
+      }
+      buttons.push([Markup.button.callback('💎 Premium Prediction', 'premium_unlock')]);
+      buttons.push([Markup.button.callback('ℹ️ About', 'about')]);
+
+      await ctx.editMessageText(noMatchMsg, {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard(buttons),
+      });
+    } else {
+      const summaryMsg = buildTodayMatchesSummary(todayPredictions, firstName);
+      const matchButtons = todayPredictions.map((pred, idx) => [
+        Markup.button.callback(
+          `🏏 Match ${idx + 1}: ${pred.team1} vs ${pred.team2}`,
+          `today_match_${idx}`
+        ),
+      ]);
+      matchButtons.push([Markup.button.callback('💎 Premium Predictions', 'premium_unlock')]);
+      matchButtons.push([Markup.button.callback('ℹ️ About', 'about')]);
+
+      await ctx.editMessageText(summaryMsg, {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard(matchButtons),
+      });
+    }
+
+    await ctx.answerCbQuery();
+  } catch (error) {
+    console.error('Error in back_today callback:', error);
+    await ctx.answerCbQuery('❌ Error going back');
+  }
 });
 
 bot.action('free_analysis', async (ctx) => {
